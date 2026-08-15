@@ -33,8 +33,7 @@ fences and block quotes, `border-bottom: solid` under an h1 and on a horizontal
 rule. Headings step h1 bright white, h2 blue, h3 cyan, and h4 down to h6 plain
 bold, so the level is read from hue rather than from size.
 
-`Markdown` carries `max-width: 96` so a wide terminal gives margins instead of
-long lines.
+Blocks take the full width of the terminal, less the document's own padding.
 
 ## Links
 

@@ -111,7 +111,7 @@ class Jkl(App):
         scrollbar-color-hover: ansi_bright_black;
         scrollbar-color-active: ansi_blue;
     }
-    Markdown { padding: 1 3; width: 1fr; max-width: 96; }
+    Markdown { padding: 1 3; width: 1fr; }
     MarkdownBlock { padding: 0; background: ansi_default; }
     MarkdownHeader {
         background: ansi_default;
