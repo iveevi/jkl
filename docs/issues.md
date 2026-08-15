@@ -38,3 +38,23 @@ checks `is_file()` before loading and reports a miss in the status line.
 hands every href to `App.open_url`, so clicking a relative path opened a browser
 as well as loading the file. `Viewer.go` calls `open_url` itself, only for an
 `http`, `https`, or `mailto` scheme.
+
+## 4. Textual's ANSI highlight theme is misspelt
+
+`SYNTAX` replaces `ANSIDarkHighlightTheme.STYLES` wholesale, which is what
+`MarkdownFence` reaches for under `ansi_color`. Three of the entries in the
+shipped table name colours that do not exist, so `Style.parse` throws on them and
+the token ends up unstyled: `Token.String` is `ansi_greenb`,
+`Token.Name.Attribute` is `ansi_yelllow`, and `Token.Name.Function.Magic` is
+`ansi_blow`. String literals losing their colour is most of why highlighting
+looked wrong.
+
+The other half is the fallback. `highlight()` walks a token up its ancestors
+looking for a style and gives up at the root, and whatever is left over is
+painted with the `$text` design token, which resolves to `#ffffff`: a hard white
+that ignores the terminal palette. Punctuation has no entry at all, so every
+bracket and colon in a fence glared. `SYNTAX` maps the root `Token` itself, which
+terminates that walk with `ansi_default` and leaves nothing to fall through.
+
+A tidy-up that drops the root `Token` entry, or the explicit `Token.Punctuation`,
+brings the white back.

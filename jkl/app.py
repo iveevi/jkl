@@ -3,13 +3,47 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
+from pygments.token import Token
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.highlight import ANSIDarkHighlightTheme
 from textual.widgets import Markdown, MarkdownViewer, Static
 
 REMOTE = ("http", "https", "mailto")
 INTERVAL = 0.25
+
+SYNTAX = {
+    Token: "ansi_default",
+    Token.Comment: "ansi_bright_black italic",
+    Token.Error: "ansi_red",
+    Token.Generic.Emph: "italic",
+    Token.Generic.Error: "ansi_red",
+    Token.Generic.Heading: "ansi_blue bold",
+    Token.Generic.Strong: "bold",
+    Token.Generic.Subheading: "ansi_blue",
+    Token.Keyword: "ansi_blue",
+    Token.Keyword.Type: "ansi_bright_cyan",
+    Token.Name: "ansi_default",
+    Token.Name.Builtin: "ansi_cyan",
+    Token.Name.Builtin.Pseudo: "ansi_blue italic",
+    Token.Name.Class: "ansi_bright_cyan",
+    Token.Name.Constant: "ansi_bright_cyan",
+    Token.Name.Decorator: "ansi_cyan",
+    Token.Name.Exception: "ansi_bright_cyan",
+    Token.Name.Function: "ansi_cyan",
+    Token.Name.Tag: "ansi_blue",
+    Token.Number: "ansi_magenta",
+    Token.Operator: "ansi_blue",
+    Token.Punctuation: "ansi_default",
+    Token.String: "ansi_green",
+    Token.String.Doc: "ansi_green italic",
+    Token.String.Escape: "ansi_yellow",
+    Token.String.Interpol: "ansi_default",
+    Token.Whitespace: "",
+}
+
+ANSIDarkHighlightTheme.STYLES = SYNTAX
 
 
 def stamp_of(path: Path) -> float:

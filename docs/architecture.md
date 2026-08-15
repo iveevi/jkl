@@ -21,9 +21,15 @@ whole of the `t` binding.
 
 `ansi_color` is set on the app and every colour in the CSS is an `ansi_*` name, so
 the palette is whatever the terminal is themed with rather than a Textual theme.
-This is also why code fences look right: `MarkdownFence` picks its highlight theme
-from `App.native_ansi_color`, and under `ansi_color` it uses the ANSI theme whose
+Code fences follow the same rule: `MarkdownFence` picks its highlight theme from
+`App.native_ansi_color`, and under `ansi_color` it uses the ANSI theme, whose
 sixteen colours come from the terminal.
+
+That theme is `SYNTAX`, which the module installs over
+`ANSIDarkHighlightTheme.STYLES`, since `MarkdownFence` looks the class up by name
+inside the call and offers no hook to pass one in. It maps pygments tokens onto
+the ANSI sixteen: keywords blue, strings green, functions cyan, types and class
+names bright cyan, numbers magenta, comments bright black.
 
 ## Style
 

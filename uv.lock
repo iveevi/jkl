@@ -7,11 +7,15 @@ name = "jkl"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "pygments" },
     { name = "textual" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "textual", specifier = ">=8.2.8" }]
+requires-dist = [
+    { name = "pygments", specifier = ">=2.19" },
+    { name = "textual", specifier = ">=8.2.8" },
+]
 
 [[package]]
 name = "linkify-it-py"
