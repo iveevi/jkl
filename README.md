@@ -14,12 +14,17 @@ cat README.md | jkl
 | `space`           | half page down     |
 | `g` `G`           | top, bottom        |
 | `t`               | table of contents  |
+| `cmd+←` `cmd+→`   | back, forward      |
 | `b`               | back               |
 | `q`               | quit               |
 
 Links to other files are followed in place, relative to the document being read,
-and `b` walks back. A link with an `http`, `https`, or `mailto` scheme opens in
-the browser instead.
+and the history walks like a browser's. A link with an `http`, `https`, or
+`mailto` scheme opens in the browser instead.
+
+`cmd+←` reaches the app as `super+left`, which needs a terminal speaking the kitty
+keyboard protocol; `alt+←` and `alt+→` are bound to the same actions for terminals
+that do not.
 
 Colours come from the terminal palette, so the document follows whatever theme
 the terminal is set to. [docs/architecture.md](docs/architecture.md) describes the

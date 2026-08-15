@@ -91,7 +91,8 @@ class Jkl(App):
         Binding("ctrl+u", "half(-1)", "half up", show=False),
         Binding("g,home", "top", "top", show=False),
         Binding("G,end", "bottom", "bottom", show=False),
-        Binding("b,backspace", "back", "back", show=False),
+        Binding("b,backspace,super+left,alt+left", "back", "back", show=False),
+        Binding("super+right,alt+right", "forward", "forward", show=False),
     ]
 
     CSS = """
@@ -225,6 +226,12 @@ class Jkl(App):
     async def action_back(self) -> None:
         viewer = self.viewer
         await viewer.back()
+        self.arrive(viewer.navigator.location)
+        return
+
+    async def action_forward(self) -> None:
+        viewer = self.viewer
+        await viewer.forward()
         self.arrive(viewer.navigator.location)
         return
 

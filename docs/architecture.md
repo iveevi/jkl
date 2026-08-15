@@ -45,7 +45,11 @@ against the current document and loaded only if it exists. `open_links` is off,
 so `Markdown` does not also route the href to a browser.
 
 The navigator is a stack of paths, seeded at mount with the document's own path;
-without that seed a relative link resolves against the process's cwd. `b` pops it.
+without that seed a relative link resolves against the process's cwd. It is a
+browser history rather than a stack of one direction: `back` and `forward` move an
+index within it, so `super+left` and `super+right` walk both ways over the same
+list. Textual reports cmd as `super` only when the terminal speaks the kitty
+keyboard protocol, so `alt+left` and `alt+right` are bound alongside.
 
 ## Scrolling
 
