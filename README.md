@@ -22,6 +22,8 @@ Links to other files are followed in place, relative to the document being read,
 and the history walks like a browser's. A link with an `http`, `https`, or
 `mailto` scheme opens in the browser instead.
 
+The document reloads by itself when the file changes on disk, keeping your place.
+
 `cmd+←` reaches the app as `super+left`, which needs a terminal speaking the kitty
 keyboard protocol; `alt+←` and `alt+→` are bound to the same actions for terminals
 that do not.

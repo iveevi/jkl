@@ -50,6 +50,19 @@ index within it, so `super+left` and `super+right` walk both ways over the same
 list. Textual reports cmd as `super` only when the terminal speaks the kitty
 keyboard protocol, so `alt+left` and `alt+right` are bound alongside.
 
+## Live reload
+
+A timer started at mount polls the current document's mtime four times a second
+and reparses it when it moves, keeping the scroll offset across the update so an
+edit does not throw the reader back to the top. Polling a single stat is cheaper
+than a dependency on an inotify library, and a pager only ever watches one file.
+
+The timer is only started when the document came from a path, since there is
+nothing to re-read for stdin. It follows the navigator rather than the file jkl
+was opened on, so the document you are looking at is the one being watched. A
+missing file is skipped rather than reported: a save that replaces the file
+briefly leaves nothing at the path, and the next tick picks up the new one.
+
 ## Scrolling
 
 The bindings act on the viewer rather than on focus, since focus belongs to the

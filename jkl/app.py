@@ -9,6 +9,11 @@ from textual.binding import Binding
 from textual.widgets import Markdown, MarkdownViewer, Static
 
 REMOTE = ("http", "https", "mailto")
+INTERVAL = 0.25
+
+
+def stamp_of(path: Path) -> float:
+    return path.stat().st_mtime
 
 
 def short_path(path: Path) -> str:
@@ -188,6 +193,7 @@ class Jkl(App):
         super().__init__()
         self.source = source
         self.path = path
+        self.stamp = 0.0
 
     def compose(self) -> ComposeResult:
         yield Viewer(self.source, show_table_of_contents=False, open_links=False)
@@ -209,6 +215,7 @@ class Jkl(App):
         return
 
     def arrive(self, path: Path) -> None:
+        self.stamp = stamp_of(path) if path.is_file() else 0.0
         self.status.set_label(short_path(path))
         self.report()
         return
@@ -220,6 +227,22 @@ class Jkl(App):
     def on_mount(self) -> None:
         if self.path:
             self.viewer.navigator.go(self.path)
+            self.stamp = stamp_of(self.path)
+            self.set_interval(INTERVAL, self.poll)
+        self.report()
+        return
+
+    async def poll(self) -> None:
+        path = self.viewer.navigator.location
+        if not path.is_file():
+            return
+        stamp = stamp_of(path)
+        if stamp == self.stamp:
+            return
+        self.stamp = stamp
+        offset = self.viewer.scroll_offset.y
+        await self.viewer.document.update(path.read_text())
+        self.viewer.scroll_to(y=offset, animate=False)
         self.report()
         return
 
