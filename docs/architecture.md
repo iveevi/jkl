@@ -36,6 +36,17 @@ bold, so the level is read from hue rather than from size.
 `Markdown` carries `max-width: 96` so a wide terminal gives margins instead of
 long lines.
 
+## Links
+
+`Viewer` subclasses `MarkdownViewer` for one method, `go()`, which every link
+click reaches. It splits three ways: a remote scheme goes to `App.open_url`, a
+bare anchor goes to `Markdown.goto_anchor`, and anything else is a file resolved
+against the current document and loaded only if it exists. `open_links` is off,
+so `Markdown` does not also route the href to a browser.
+
+The navigator is a stack of paths, seeded at mount with the document's own path;
+without that seed a relative link resolves against the process's cwd. `b` pops it.
+
 ## Scrolling
 
 The bindings act on the viewer rather than on focus, since focus belongs to the

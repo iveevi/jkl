@@ -14,7 +14,12 @@ cat README.md | jkl
 | `space`           | half page down     |
 | `g` `G`           | top, bottom        |
 | `t`               | table of contents  |
+| `b`               | back               |
 | `q`               | quit               |
+
+Links to other files are followed in place, relative to the document being read,
+and `b` walks back. A link with an `http`, `https`, or `mailto` scheme opens in
+the browser instead.
 
 Colours come from the terminal palette, so the document follows whatever theme
 the terminal is set to. [docs/architecture.md](docs/architecture.md) describes the

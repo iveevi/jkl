@@ -1,11 +1,14 @@
 import sys
 from pathlib import Path
 from typing import Optional, Tuple
+from urllib.parse import urlparse
 
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import MarkdownViewer, Static
+from textual.widgets import Markdown, MarkdownViewer, Static
+
+REMOTE = ("http", "https", "mailto")
 
 
 def short_path(path: Path) -> str:
@@ -17,28 +20,62 @@ def short_path(path: Path) -> str:
     return str(path)
 
 
-def read_source(argument: Optional[str]) -> Tuple[str, str]:
+def read_source(argument: Optional[str]) -> Tuple[str, Optional[Path]]:
     if argument is None:
-        return sys.stdin.read(), "stdin"
-    path = Path(argument).expanduser()
-    return path.read_text(), short_path(path.resolve())
+        return sys.stdin.read(), None
+    path = Path(argument).expanduser().resolve()
+    return path.read_text(), path
 
 
 class Status(Static):
     def __init__(self, label: str) -> None:
         super().__init__(id="status")
         self.label = label
+        self.note = ""
         self.ratio = 0.0
 
     def render(self) -> Text:
-        left = f" {self.label}"
+        left = f" {self.note or self.label}"
         right = f"{int(self.ratio * 100):3d}%   q quit   t contents "
         fill = max(0, self.size.width - len(left) - len(right))
-        return Text(left + " " * fill + right)
+        line = Text(left + " " * fill + right)
+        if self.note:
+            line.stylize("bold", 0, len(left))
+        return line
 
     def set_ratio(self, ratio: float) -> None:
         self.ratio = ratio
         self.refresh()
+        return
+
+    def set_label(self, label: str) -> None:
+        self.label = label
+        self.note = ""
+        self.refresh()
+        return
+
+    def set_note(self, note: str) -> None:
+        self.note = note
+        self.refresh()
+        return
+
+
+class Viewer(MarkdownViewer):
+    async def go(self, location) -> None:
+        href = str(location)
+        if urlparse(href).scheme in REMOTE:
+            self.app.open_url(href)
+            return
+        path, anchor = Markdown.sanitize_location(href)
+        if path == Path(".") and anchor:
+            self.document.goto_anchor(anchor)
+            return
+        target = self.navigator.location.parent / path
+        if not target.is_file():
+            self.app.warn(f"no such file: {short_path(target)}")
+            return
+        await super().go(href)
+        self.app.arrive(self.navigator.location)
         return
 
 
@@ -54,6 +91,7 @@ class Jkl(App):
         Binding("ctrl+u", "half(-1)", "half up", show=False),
         Binding("g,home", "top", "top", show=False),
         Binding("G,end", "bottom", "bottom", show=False),
+        Binding("b,backspace", "back", "back", show=False),
     ]
 
     CSS = """
@@ -145,28 +183,49 @@ class Jkl(App):
     }
     """
 
-    def __init__(self, source: str, label: str) -> None:
+    def __init__(self, source: str, path: Optional[Path]) -> None:
         super().__init__()
         self.source = source
-        self.label = label
+        self.path = path
 
     def compose(self) -> ComposeResult:
-        yield MarkdownViewer(self.source, show_table_of_contents=False)
-        yield Status(self.label)
+        yield Viewer(self.source, show_table_of_contents=False, open_links=False)
+        yield Status(short_path(self.path) if self.path else "stdin")
 
     @property
-    def viewer(self) -> MarkdownViewer:
-        return self.query_one(MarkdownViewer)
+    def viewer(self) -> Viewer:
+        return self.query_one(Viewer)
+
+    @property
+    def status(self) -> Status:
+        return self.query_one(Status)
 
     def report(self) -> None:
         viewer = self.viewer
         limit = viewer.max_scroll_y
         ratio = viewer.scroll_offset.y / limit if limit else 1.0
-        self.query_one(Status).set_ratio(ratio)
+        self.status.set_ratio(ratio)
+        return
+
+    def arrive(self, path: Path) -> None:
+        self.status.set_label(short_path(path))
+        self.report()
+        return
+
+    def warn(self, note: str) -> None:
+        self.status.set_note(note)
         return
 
     def on_mount(self) -> None:
+        if self.path:
+            self.viewer.navigator.go(self.path)
         self.report()
+        return
+
+    async def action_back(self) -> None:
+        viewer = self.viewer
+        await viewer.back()
+        self.arrive(viewer.navigator.location)
         return
 
     def action_contents(self) -> None:
@@ -198,8 +257,8 @@ class Jkl(App):
 
 def main() -> None:
     argument = sys.argv[1] if len(sys.argv) > 1 else None
-    source, label = read_source(argument)
+    source, path = read_source(argument)
     if not sys.stdin.isatty():
         sys.stdin = open("/dev/tty")
-    Jkl(source, label).run()
+    Jkl(source, path).run()
     return
