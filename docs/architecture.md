@@ -69,6 +69,38 @@ was opened on, so the document you are looking at is the one being watched. A
 missing file is skipped rather than reported: a save that replaces the file
 briefly leaves nothing at the path, and the next tick picks up the new one.
 
+## Mermaid
+
+`Fence` subclasses `MarkdownFence` and splits on the fence's info string: anything
+but `mermaid` composes as Textual does, a `Label` of highlighted code, while a
+mermaid fence composes a placeholder label and starts a threaded worker. The
+worker calls `render()` and posts the result back, which either replaces the
+label with a `textual_image` `Image` or writes the failure into it. `Document`
+subclasses `Markdown` only to put `Fence` in `BLOCKS` under both fence tokens,
+and `Viewer.compose` is overridden to build that document instead of a plain one.
+
+`Fence.fit()` sizes the picture rather than letting the image widget size itself:
+Textual's auto sizing stretches the image to the container and loses the aspect
+ratio, so the cell box is computed from the PNG's own pixel dimensions over the
+terminal's cell size, scaled down only when it is wider than the block. It runs
+again on resize.
+
+`render()` hashes the diagram source together with the renderer options and
+returns the cached PNG under `~/.cache/jkl` when one exists. Otherwise it writes
+the source and a puppeteer config into a temporary directory and runs `mmdc`, or
+`npx --yes @mermaid-js/mermaid-cli` when `mmdc` is not installed, moving the
+result into the cache only once the process has succeeded. The config sets the
+diagram's font to CaskaydiaCove so the labels match the terminal's own type, so a cache entry is
+never a half-written file. The puppeteer config passes `--no-sandbox`, without
+which chrome refuses to launch on distributions that restrict unprivileged user
+namespaces. Failures are reported as the first line of stderr mentioning an
+error, since mermaid follows its message with a stack trace.
+
+Being a worker rather than a blocking call is what keeps the pager usable: the
+first `npx` run downloads a browser and takes minutes, and even a warm run is a
+chrome launch. Live reload rebuilds blocks, so `_update_from_block` restores the
+placeholder and redraws; the cache makes an unchanged diagram immediate.
+
 ## Scrolling
 
 The bindings act on the viewer rather than on focus, since focus belongs to the

@@ -3,15 +3,24 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
+from PIL import Image as Picture
 from pygments.token import Token
 from rich.text import Text
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.highlight import ANSIDarkHighlightTheme
-from textual.widgets import Markdown, MarkdownViewer, Static
+from textual.widgets import Label, Markdown, MarkdownViewer, Static
+from textual.widgets.markdown import MarkdownFence, MarkdownTableOfContents
+from textual_image._terminal import get_cell_size
+from textual_image.widget import Image
+
+from .mermaid import *
 
 REMOTE = ("http", "https", "mailto")
 INTERVAL = 0.25
+MERMAID = "mermaid"
+DRAWING = "drawing diagram"
 
 SYNTAX = {
     Token: "ansi_default",
@@ -99,7 +108,76 @@ class Status(Static):
         return
 
 
+class Fence(MarkdownFence):
+    def compose(self) -> ComposeResult:
+        if self.lexer != MERMAID:
+            yield from super().compose()
+            return
+        self.add_class(MERMAID)
+        yield Label(DRAWING, id="code-content", expand=True)
+
+    def on_mount(self) -> None:
+        if self.lexer == MERMAID:
+            self.draw()
+        return
+
+    @work(thread=True, exclusive=True)
+    def draw(self) -> None:
+        path, note = render(self.code)
+        self.app.call_from_thread(self.show, path, note)
+        return
+
+    def show(self, path: Optional[Path], note: str) -> None:
+        if path is None:
+            self.query_one("#code-content", Label).update(note)
+            return
+        self.remove_children()
+        picture = Image(path)
+        self.mount(picture)
+        self.fit(picture)
+        return
+
+    def fit(self, picture: Image) -> None:
+        cell = get_cell_size()
+        pixels = Picture.open(picture.image).size
+        columns = max(1, round(pixels[0] / cell.width))
+        rows = max(1, round(pixels[1] / cell.height))
+        limit = self.size.width
+        if limit and columns > limit:
+            rows = max(1, round(rows * limit / columns))
+            columns = limit
+        picture.styles.width = columns
+        picture.styles.height = rows
+        return
+
+    def on_resize(self) -> None:
+        for picture in self.query(Image):
+            self.fit(picture)
+        return
+
+    async def _update_from_block(self, block: MarkdownFence) -> None:
+        await super()._update_from_block(block)
+        if self.lexer != MERMAID:
+            return
+        await self.remove_children()
+        await self.mount(Label(DRAWING, id="code-content", expand=True))
+        self.draw()
+        return
+
+
+class Document(Markdown):
+    BLOCKS = {**Markdown.BLOCKS, "fence": Fence, "code_block": Fence}
+
+
 class Viewer(MarkdownViewer):
+    def compose(self) -> ComposeResult:
+        document = Document(
+            parser_factory=self._parser_factory, open_links=self._open_links
+        )
+        document.can_focus = True
+        yield document
+        yield MarkdownTableOfContents(document)
+
     async def go(self, location) -> None:
         href = str(location)
         if urlparse(href).scheme in REMOTE:
@@ -184,6 +262,13 @@ class Jkl(App):
         max-height: 24;
     }
     MarkdownFence > Label { padding: 0 2; }
+    MarkdownFence.mermaid {
+        border-left: none;
+        max-height: 100%;
+        align-horizontal: center;
+    }
+    MarkdownFence.mermaid > Label { padding: 0; }
+    
     MarkdownBlockQuote {
         background: ansi_default;
         border-left: outer ansi_yellow;

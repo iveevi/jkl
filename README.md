@@ -24,6 +24,12 @@ and the history walks like a browser's. A link with an `http`, `https`, or
 
 The document reloads by itself when the file changes on disk, keeping your place.
 
+A ```` ```mermaid ```` fence is drawn as a picture rather than as code, so the
+diagram appears inline in a terminal that speaks the kitty graphics or sixel
+protocol. Drawing shells out to `mmdc`, or to `npx @mermaid-js/mermaid-cli` when
+that is not installed, so node has to be on the path; results are cached under
+`~/.cache/jkl`.
+
 `cmd+←` reaches the app as `super+left`, which needs a terminal speaking the kitty
 keyboard protocol; `alt+←` and `alt+→` are bound to the same actions for terminals
 that do not.
