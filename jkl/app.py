@@ -8,6 +8,7 @@ from pygments.token import Token
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
+from textual.await_complete import AwaitComplete
 from textual.binding import Binding
 from textual.highlight import ANSIDarkHighlightTheme
 from textual.widgets import Label, Markdown, MarkdownViewer, Static
@@ -15,12 +16,18 @@ from textual.widgets.markdown import MarkdownFence, MarkdownTableOfContents
 from textual_image._terminal import get_cell_size
 from textual_image.widget import Image
 
+from .latex import MATH, available as has_latex, fit as fit_math
+from .latex import render as typeset_math, typeset
 from .mermaid import *
 
 REMOTE = ("http", "https", "mailto")
 INTERVAL = 0.25
 MERMAID = "mermaid"
 DRAWING = "drawing diagram"
+TYPESETTING = "typesetting maths"
+HAS_LATEX = has_latex()
+BASE = 20.0
+SCALING = (0.5, 4.0)
 
 SYNTAX = {
     Token: "ansi_default",
@@ -53,6 +60,12 @@ SYNTAX = {
 }
 
 ANSIDarkHighlightTheme.STYLES = SYNTAX
+
+
+def scaling() -> float:
+    cell = get_cell_size()
+    ratio = cell.height / BASE
+    return min(max(ratio, SCALING[0]), SCALING[1])
 
 
 def stamp_of(path: Path) -> float:
@@ -109,21 +122,28 @@ class Status(Static):
 
 
 class Fence(MarkdownFence):
+    @property
+    def figure(self) -> bool:
+        return self.lexer == MERMAID or (self.lexer == MATH and HAS_LATEX)
+
     def compose(self) -> ComposeResult:
-        if self.lexer != MERMAID:
+        if not self.figure:
             yield from super().compose()
             return
         self.add_class(MERMAID)
-        yield Label(DRAWING, id="code-content", expand=True)
+        yield Label(DRAWING if self.lexer == MERMAID else TYPESETTING, id="code-content", expand=True)
 
     def on_mount(self) -> None:
-        if self.lexer == MERMAID:
+        if self.figure:
             self.draw()
         return
 
     @work(thread=True, exclusive=True)
     def draw(self) -> None:
-        path, note = render(self.code)
+        if self.lexer == MERMAID:
+            path, note = render(self.code, scaling())
+        else:
+            path, note = typeset_math(self.code)
         self.app.call_from_thread(self.show, path, note)
         return
 
@@ -132,6 +152,7 @@ class Fence(MarkdownFence):
             self.query_one("#code-content", Label).update(note)
             return
         self.remove_children()
+        self.figure_path = path
         picture = Image(path)
         self.mount(picture)
         self.fit(picture)
@@ -139,13 +160,19 @@ class Fence(MarkdownFence):
 
     def fit(self, picture: Image) -> None:
         cell = get_cell_size()
-        pixels = Picture.open(picture.image).size
-        columns = max(1, round(pixels[0] / cell.width))
-        rows = max(1, round(pixels[1] / cell.height))
-        limit = self.size.width
-        if limit and columns > limit:
-            rows = max(1, round(rows * limit / columns))
-            columns = limit
+        if self.lexer == MATH:
+            path, columns, rows = fit_math(
+                self.figure_path, (cell.width, cell.height), self.size.width
+            )
+            picture.image = str(path)
+        else:
+            pixels = Picture.open(picture.image).size
+            columns = max(1, round(pixels[0] / cell.width))
+            rows = max(1, round(pixels[1] / cell.height))
+            limit = self.size.width
+            if limit and columns > limit:
+                rows = max(1, round(rows * limit / columns))
+                columns = limit
         picture.styles.width = columns
         picture.styles.height = rows
         return
@@ -157,16 +184,20 @@ class Fence(MarkdownFence):
 
     async def _update_from_block(self, block: MarkdownFence) -> None:
         await super()._update_from_block(block)
-        if self.lexer != MERMAID:
+        if not self.figure:
             return
         await self.remove_children()
-        await self.mount(Label(DRAWING, id="code-content", expand=True))
+        label = DRAWING if self.lexer == MERMAID else TYPESETTING
+        await self.mount(Label(label, id="code-content", expand=True))
         self.draw()
         return
 
 
 class Document(Markdown):
     BLOCKS = {**Markdown.BLOCKS, "fence": Fence, "code_block": Fence}
+
+    def update(self, markdown: str) -> AwaitComplete:
+        return super().update(typeset(markdown))
 
 
 class Viewer(MarkdownViewer):

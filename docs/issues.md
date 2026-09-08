@@ -58,3 +58,14 @@ terminates that walk with `ansi_default` and leaves nothing to fall through.
 
 A tidy-up that drops the root `Token` entry, or the explicit `Token.Punctuation`,
 brings the white back.
+
+## 5. flatlatex converts `\bot` to ⊤
+
+`converter().convert(r"\bot")` returns ⊤ and leaves `\top` unconverted, so every
+bottom in a lattice document came out as a top: not a span that fails and falls
+back to raw TeX, but one that succeeds and says the opposite of what it means.
+`ALIASES` defines both symbols explicitly, which overrides the shipped table.
+
+Subscripts have no such fix. flatlatex writes a subscript with no unicode form as
+a bracket, so `$P_b$` is `P[b]`, since unicode has no latin letter b subscript.
+Display maths is the way out of it: `$$` goes through real latex.

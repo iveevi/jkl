@@ -101,6 +101,52 @@ first `npx` run downloads a browser and takes minutes, and even a warm run is a
 chrome launch. Live reload rebuilds blocks, so `_update_from_block` restores the
 placeholder and redraws; the cache makes an unchanged diagram immediate.
 
+## Maths
+
+`typeset()` runs over the source before `Markdown` ever sees it, since markdown-it
+otherwise eats the TeX: `\{`, `\}` and `\\` are consumed as markdown escapes, and
+subscripts pair up as emphasis, so `$|\cdot|_\nu$ ... $|\bot_b|_\nu$` italicises
+everything between the two spans.
+
+It scans four delimiter pairs, `$$`, `\[`, `$` and `\(`. A display match becomes a
+fence tagged `math`, which `Fence` draws exactly as it draws mermaid; an inline
+match is converted to unicode by flatlatex and emitted as text. Fenced code blocks
+are skipped whole and inline code spans are stepped over, so a `$` inside either is
+left alone.
+
+A single `$` is only maths when it looks like maths: no space just inside either
+delimiter, and no digit just after the closing one, or `$4,650 and $4,680/oz`
+reads as a span. A span flatlatex cannot convert, or converts only halfway, is
+wrapped in backticks rather than emitted raw, which is what keeps the escapes and
+the subscripts intact.
+
+flatlatex is extended with `add_newcommand` for the commands it lacks, the order
+theory ones among them, `\sqcap`, `\sqcup`, `\top`, `\bot` and the triangles, since
+a document about lattices is mostly those. Font commands are defined as identity
+and operator names such as `\log` are stripped to plain words by a regex first.
+
+`\{`, `\}` and `\|` cannot be given a `newcommand`, so they are swapped for private
+use characters before conversion and swapped back after. Left as they are,
+flatlatex returns them with their backslashes still attached and the span is
+rejected as unconverted; replaced with bare braces they would be read as grouping
+and vanish.
+
+Display maths goes through `latex` and `dvipng` at a fixed 300 DPI, cached under
+`~/.cache/jkl` by a digest of the source and that resolution. A failure is
+reported as the first `!` line of the latex log, since the rest is the file's own
+trace. When `latex` or `dvipng` is missing, `Fence` falls back to composing the
+block as ordinary highlighted code, so the TeX is still readable and still
+unmangled.
+
+DPI is a sharpness control and `fit()` is the size control: it scales the PNG by
+`EM * cell.height / DPI`, so a formula's type is a fixed fraction of the
+terminal's own, whatever the font size, and then pastes it onto a transparent
+canvas whose dimensions are an exact multiple of the cell size. Without that
+padding the terminal rescales each image to fill its cell box and the rounding
+differs per image, so one formula's glyphs come out larger than the next one's and
+none of them keep their aspect ratio. A formula wider than the block is scaled to
+the block first. It runs again on resize, since the cell size can change.
+
 ## Scrolling
 
 The bindings act on the viewer rather than on focus, since focus belongs to the

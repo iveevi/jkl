@@ -10,7 +10,6 @@ from typing import List, Optional, Tuple
 PACKAGE = "@mermaid-js/mermaid-cli"
 THEME = "dark"
 BACKGROUND = "transparent"
-SCALE = "1"
 PUPPETEER = '{"args": ["--no-sandbox"]}'
 FONT = "CaskaydiaCove Nerd Font"
 CONFIG = json.dumps({"theme": THEME, "themeVariables": {"fontFamily": FONT}})
@@ -19,13 +18,13 @@ TIMEOUT = 120
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "jkl"
 
 
-def digest(code: str) -> str:
-    seed = "\0".join([code, CONFIG, BACKGROUND, SCALE])
+def digest(code: str, scale: float) -> str:
+    seed = "\0".join([code, CONFIG, BACKGROUND, f"{scale:.3f}"])
     return hashlib.sha256(seed.encode()).hexdigest()[:32]
 
 
 def command(
-    source: Path, target: Path, settings: Path, config: Path
+    source: Path, target: Path, settings: Path, config: Path, scale: float
 ) -> Optional[List[str]]:
     options = [
         "-i",
@@ -37,7 +36,7 @@ def command(
         "-b",
         BACKGROUND,
         "-s",
-        SCALE,
+        f"{scale:.3f}",
         "-p",
         str(settings),
     ]
@@ -50,14 +49,27 @@ def command(
     return None
 
 
+NOISE = ("at ", "node:", "Generating ")
+LIMIT = 12
+
+
 def complaint(output: str) -> str:
-    lines = [line.strip() for line in output.splitlines() if line.strip()]
-    faults = [line for line in lines if "error" in line.lower()]
-    return faults[0] if faults else "mermaid failed"
+    lines = [line.rstrip() for line in output.splitlines()]
+    starts = [i for i, line in enumerate(lines) if "error" in line.lower()]
+    if not starts:
+        return "mermaid failed"
+    block = []
+    for line in lines[starts[0] :]:
+        if line.strip().startswith(NOISE) or "://" in line:
+            break
+        block.append(line)
+    while block and not block[-1].strip():
+        block.pop()
+    return "\n".join(block[:LIMIT])
 
 
-def render(code: str) -> Tuple[Optional[Path], str]:
-    target = CACHE / f"{digest(code)}.png"
+def render(code: str, scale: float = 1.0) -> Tuple[Optional[Path], str]:
+    target = CACHE / f"{digest(code, scale)}.png"
     if target.is_file():
         return target, ""
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -69,7 +81,7 @@ def render(code: str) -> Tuple[Optional[Path], str]:
         settings.write_text(PUPPETEER)
         config = Path(scratch) / "config.json"
         config.write_text(CONFIG)
-        line = command(source, draft, settings, config)
+        line = command(source, draft, settings, config, scale)
         if line is None:
             return None, "mermaid needs mmdc or npx on PATH"
         try:
